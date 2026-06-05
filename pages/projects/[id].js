@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
@@ -18,20 +17,36 @@ export default function ProjectPage() {
 
   useEffect(() => {
     if (!id) return
-    fetchProject()
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
+      if (session?.user) {
+        fetchProfile(session.user.id)
+        fetchProject(session.user.id)
+      } else {
+        fetchProject(null)
+      }
     })
   }, [id])
 
-  async function fetchProject() {
+  async function fetchProject(userId) {
     const { data } = await supabase.from('projects').select('*, profiles(username, avatar_url, role)').eq('id', id).single()
     setProject(data)
     setLoading(false)
     if (data) {
-      await supabase.from('projects').update({ runs: (data.runs || 0) + 1 }).eq('id', id)
+      // Only count view once per user forever (DB enforced via UNIQUE constraint)
+      const { error: viewError } = await supabase.from('views').insert({
+        user_id: userId || null,
+        project_id: id,
+      })
+      if (!viewError) {
+        await supabase.from('projects').update({ runs: (data.runs || 0) + 1 }).eq('id', id)
+      }
       fetchComments()
+      // Check if user already liked this
+      if (userId) {
+        const { data: existingLike } = await supabase.from('likes').select('id').eq('user_id', userId).eq('project_id', id).single()
+        if (existingLike) setLiked(true)
+      }
     }
   }
 
@@ -47,10 +62,19 @@ export default function ProjectPage() {
 
   async function handleLike() {
     if (!user) { router.push('/login'); return }
-    if (liked) return
-    setLiked(true)
-    await supabase.from('projects').update({ likes: (project.likes || 0) + 1 }).eq('id', id)
-    setProject(p => ({ ...p, likes: (p.likes || 0) + 1 }))
+    if (liked) {
+      // Unlike
+      setLiked(false)
+      await supabase.from('likes').delete().eq('user_id', user.id).eq('project_id', id)
+      await supabase.from('projects').update({ likes: Math.max((project.likes || 1) - 1, 0) }).eq('id', id)
+      setProject(p => ({ ...p, likes: Math.max((p.likes || 1) - 1, 0) }))
+    } else {
+      // Like
+      setLiked(true)
+      await supabase.from('likes').insert({ user_id: user.id, project_id: id })
+      await supabase.from('projects').update({ likes: (project.likes || 0) + 1 }).eq('id', id)
+      setProject(p => ({ ...p, likes: (p.likes || 0) + 1 }))
+    }
   }
 
   async function handleComment(e) {
@@ -244,7 +268,6 @@ export default function ProjectPage() {
             <div className="card" style={{ padding: '1.25rem' }}>
               <h4 style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '0.85rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>⚡ Owner actions</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <Link href={`/edit/${project.id}`} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px', textAlign: 'center' }}>✏️ Edit project</Link>
                 {isAdmin && (
                   <button onClick={async () => {
                     await supabase.from('projects').update({ featured: !project.featured }).eq('id', id)
