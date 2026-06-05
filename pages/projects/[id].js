@@ -241,18 +241,23 @@ export default function ProjectPage() {
           </div>
 
           {(isOwner || isAdmin) && (
-  <div className="card" style={{ padding: '1.25rem' }}>
-    <h4 style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '0.85rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>⚡ Owner actions</h4>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <Link href={`/edit/${project.id}`} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px', textAlign: 'center' }}>✏️ Edit project</Link>
-      {isAdmin && (
-        <button onClick={async () => {
-          await supabase.from('projects').update({ featured: !project.featured }).eq('id', id)
-          setProject(p => ({ ...p, featured: !p.featured }))
-        }} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px' }}>
-          {project.featured ? '★ Unfeature' : '⭐ Feature this'}
-        </button>
-      )}
+            <div className="card" style={{ padding: '1.25rem' }}>
+              <h4 style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '0.85rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>⚡ Owner actions</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <Link href={`/edit/${project.id}`} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px', textAlign: 'center' }}>✏️ Edit project</Link>
+                {isAdmin && (
+                  <button onClick={async () => {
+                    await supabase.from('projects').update({ featured: !project.featured }).eq('id', id)
+                    setProject(p => ({ ...p, featured: !p.featured }))
+                  }} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px' }}>
+                    {project.featured ? '★ Unfeature' : '⭐ Feature this'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
-  </div>
-)}
+  )
+}
