@@ -1,3 +1,4 @@
+cat > /home/claude/vcac/pages/submit.js << 'EOF'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
@@ -10,10 +11,11 @@ export default function Submit() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
-  const [submitType, setSubmitType] = useState('link') // 'link' | 'code'
   const [form, setForm] = useState({
     title: '', description: '', category: 'Game',
-    demo_url: '', source_url: '', html_code: '', thumbnail_url: ''
+    live_url: '', download_url: '', source_url: '',
+    screenshots: ['', '', ''],
+    has_source: false
   })
 
   useEffect(() => {
@@ -25,21 +27,33 @@ export default function Submit() {
 
   function update(field, value) { setForm(f => ({ ...f, [field]: value })) }
 
+  function updateScreenshot(i, value) {
+    const s = [...form.screenshots]
+    s[i] = value
+    setForm(f => ({ ...f, screenshots: s }))
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!form.title.trim() || !form.description.trim()) { setError('Title and description are required'); return }
-    if (submitType === 'link' && !form.demo_url.trim()) { setError('Please provide a demo URL'); return }
-    if (submitType === 'code' && !form.html_code.trim()) { setError('Please paste your HTML/JS code'); return }
+    if (!form.title.trim()) { setError('Title is required'); return }
+    if (!form.description.trim()) { setError('Description is required'); return }
+    if (!form.live_url.trim() && !form.download_url.trim()) { setError('Please provide at least a live URL or download link'); return }
     setLoading(true); setError(null)
+
+    const screenshots = form.screenshots.filter(s => s.trim())
+    const thumbnail = screenshots[0] || null
+
     const { error } = await supabase.from('projects').insert({
       user_id: user.id,
       title: form.title.trim(),
       description: form.description.trim(),
       category: form.category,
-      demo_url: form.demo_url.trim() || null,
-      source_url: form.source_url.trim() || null,
-      html_code: submitType === 'code' ? form.html_code.trim() : null,
-      thumbnail_url: form.thumbnail_url.trim() || null,
+      demo_url: form.live_url.trim() || null,
+      download_url: form.download_url.trim() || null,
+      source_url: form.has_source ? (form.source_url.trim() || null) : null,
+      has_source: form.has_source,
+      screenshots: screenshots,
+      thumbnail_url: thumbnail,
       status: 'pending',
       likes: 0, runs: 0, featured: false
     })
@@ -53,11 +67,11 @@ export default function Submit() {
         <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🍁</div>
         <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: '2rem', color: 'var(--white)', marginBottom: '0.75rem' }}>Project submitted!</h1>
         <p style={{ color: 'var(--text-mid)', maxWidth: 400, margin: '0 auto 2rem', lineHeight: 1.8 }}>
-          The VCAC president will review your project and approve it shortly. You'll see it in the gallery once it's live.
+          The VCAC president will review your project and approve it shortly.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <a href="/projects" className="btn btn-primary">Browse projects</a>
-          <a href="/submit" className="btn btn-ghost" onClick={() => { setSuccess(false); setForm({ title:'',description:'',category:'Game',demo_url:'',source_url:'',html_code:'',thumbnail_url:'' }) }}>Submit another</a>
+          <a href="/submit" className="btn btn-ghost" onClick={() => { setSuccess(false); setForm({ title:'',description:'',category:'Game',live_url:'',download_url:'',source_url:'',screenshots:['','',''],has_source:false }) }}>Submit another</a>
         </div>
       </div>
     </div>
@@ -72,6 +86,7 @@ export default function Submit() {
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
         {/* Title */}
         <div>
           <label>Project title *</label>
@@ -92,50 +107,66 @@ export default function Submit() {
           </select>
         </div>
 
-        {/* Submit type toggle */}
-        <div>
-          <label>How do you want to share it? *</label>
-          <div style={{ display: 'flex', background: 'var(--panel)', borderRadius: 8, padding: 4, marginTop: 2 }}>
-            {[{ v: 'link', l: '🔗 Paste a link (GitHub, CodePen, etc.)' }, { v: 'code', l: '💻 Paste HTML/JS code directly' }].map(opt => (
-              <button type="button" key={opt.v} onClick={() => setSubmitType(opt.v)} style={{
-                flex: 1, padding: '10px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontFamily: 'DM Sans', fontSize: '0.82rem', fontWeight: 500, transition: 'all 0.2s',
-                background: submitType === opt.v ? 'var(--surface)' : 'transparent',
-                color: submitType === opt.v ? 'var(--white)' : 'var(--text-dim)'
-              }}>{opt.l}</button>
-            ))}
+        {/* Links */}
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>🔗 Links</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label>Live URL</label>
+              <input type="url" placeholder="https://your-project.vercel.app" value={form.live_url} onChange={e => update('live_url', e.target.value)} />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 4 }}>A link people can click to try your project (Vercel, GitHub Pages, CodePen, etc.)</div>
+            </div>
+            <div>
+              <label>Download link</label>
+              <input type="url" placeholder="https://github.com/you/project/releases/download/..." value={form.download_url} onChange={e => update('download_url', e.target.value)} />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 4 }}>A direct download link (zip file, exe, etc.)</div>
+            </div>
           </div>
         </div>
 
-        {submitType === 'link' ? (
-          <div>
-            <label>Demo / live URL *</label>
-            <input type="url" placeholder="https://your-project.vercel.app" value={form.demo_url} onChange={e => update('demo_url', e.target.value)} />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 6 }}>Must be a publicly accessible URL that runs in an iframe (CodePen, Vercel, GitHub Pages, etc.)</div>
-          </div>
-        ) : (
-          <div>
-            <label>HTML / JavaScript code *</label>
-            <textarea placeholder="<!DOCTYPE html>&#10;<html>&#10;  <!-- your vibe coded project -->&#10;</html>" value={form.html_code} onChange={e => update('html_code', e.target.value)} rows={10} style={{ fontFamily: 'DM Mono', fontSize: '0.78rem', resize: 'vertical' }} />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 6 }}>Paste your full HTML file. It will run in a sandboxed iframe.</div>
-          </div>
-        )}
-
-        {/* Optional fields */}
+        {/* Screenshots */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>Optional</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <label>Source code / GitHub URL</label>
-              <input type="url" placeholder="https://github.com/you/your-project" value={form.source_url} onChange={e => update('source_url', e.target.value)} />
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 6 }}>Pro members will be able to view this</div>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>📸 Screenshots</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '1rem' }}>Paste image URLs (upload to imgur.com for free, then paste the link). First image is your thumbnail.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {form.screenshots.map((s, i) => (
+              <div key={i}>
+                <label>Screenshot {i + 1}{i === 0 ? ' (thumbnail)' : ''}</label>
+                <input type="url" placeholder="https://i.imgur.com/yourimage.png" value={s} onChange={e => updateScreenshot(i, e.target.value)} />
+              </div>
+            ))}
+          </div>
+          {/* Preview */}
+          {form.screenshots[0] && (
+            <div style={{ marginTop: '1rem', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', maxHeight: 200 }}>
+              <img src={form.screenshots[0]} alt="Preview" style={{ width: '100%', objectFit: 'cover', maxHeight: 200 }} onError={e => e.target.style.display='none'} />
             </div>
-            <div>
-              <label>Thumbnail image URL</label>
-              <input type="url" placeholder="https://i.imgur.com/yourimage.png" value={form.thumbnail_url} onChange={e => update('thumbnail_url', e.target.value)} />
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 6 }}>A screenshot of your project (hosted anywhere)</div>
+          )}
+        </div>
+
+        {/* Source code */}
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>💰 Source Code (optional)</div>
+
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, padding: '1.25rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <input type="checkbox" id="has_source" checked={form.has_source} onChange={e => update('has_source', e.target.checked)} style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0 }} />
+              <label htmlFor="has_source" style={{ cursor: 'pointer', marginBottom: 0 }}>
+                <span style={{ fontWeight: 600, color: 'var(--white)', fontSize: '0.9rem' }}>Include source code for Pro members</span>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.6 }}>
+                  Pro members pay $9/mo to unlock source code. You earn a percentage every time someone unlocks yours. 🍁
+                </div>
+              </label>
             </div>
           </div>
+
+          {form.has_source && (
+            <div>
+              <label>GitHub / source code URL</label>
+              <input type="url" placeholder="https://github.com/you/your-project" value={form.source_url} onChange={e => update('source_url', e.target.value)} />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 4 }}>Only visible to Pro members</div>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -152,3 +183,5 @@ export default function Submit() {
     </div>
   )
 }
+EOF
+echo "submit.js done"
