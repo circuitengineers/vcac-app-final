@@ -260,5 +260,4 @@ export default function ProjectPage() {
     </div>
   )
 }
-EOF
-echo "project [id].js done"
+
