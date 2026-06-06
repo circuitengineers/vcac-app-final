@@ -139,7 +139,7 @@ export default function ProjectPage() {
               </div>
               <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: '2rem', color: 'var(--white)', letterSpacing: '-0.02em' }}>{project.title}</h1>
               <p style={{ color: 'var(--text-mid)', fontSize: '0.9rem', marginTop: 6 }}>
-                by <span style={{ color: 'var(--white)' }}>{project.profiles?.username}</span>
+                by <Link href={'/user/' + project.profiles?.username} style={{ color: 'var(--white)', textDecoration: 'none', borderBottom: '1px solid var(--border)' }}>{project.profiles?.username}</Link>
                 {project.profiles?.role === 'president' && <span className="badge badge-gold" style={{ marginLeft: 8 }}>🍁 President</span>}
                 {project.profiles?.role === 'pro' && <span className="badge badge-cyan" style={{ marginLeft: 8 }}>⚡ Pro</span>}
               </p>
@@ -247,7 +247,7 @@ export default function ProjectPage() {
                       {(c.profiles?.username || '?')[0].toUpperCase()}
                     </div>
                     <div>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--white)' }}>{c.profiles?.username}</span>
+                      <Link href={'/user/' + c.profiles?.username} style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--white)', textDecoration: 'none' }}>{c.profiles?.username}</Link>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginLeft: 8 }}>{new Date(c.created_at).toLocaleDateString()}</span>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-mid)', marginTop: 3, lineHeight: 1.6 }}>{c.content}</p>
                     </div>
