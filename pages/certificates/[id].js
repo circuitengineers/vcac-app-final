@@ -310,6 +310,7 @@ export default function CertificatePage() {
   const [score, setScore] = useState(0)
   const [loading, setLoading] = useState(true)
   const [rendered, setRendered] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
   const [showNameModal, setShowNameModal] = useState(false)
   const [fullName, setFullName] = useState('')
   const [nameInput, setNameInput] = useState('')
@@ -332,6 +333,7 @@ export default function CertificatePage() {
   }, [project, tier, fullName, rendered])
 
   async function fetchData() {
+    const { data: { session } } = await supabase.auth.getSession()
     const { data: proj } = await supabase.from('projects').select('*, profiles(username, role, full_name)').eq('id', id).single()
     if (!proj) { setLoading(false); return }
     setProject(proj)
@@ -340,6 +342,7 @@ export default function CertificatePage() {
     setScore(s)
     setTier(getTier(s))
     // Pre-fill name if already saved
+    if (session && proj.user_id === session.user.id) setIsOwner(true)
     if (proj.profiles?.full_name) {
       setFullName(proj.profiles.full_name)
       setNameInput(proj.profiles.full_name)
@@ -445,12 +448,20 @@ export default function CertificatePage() {
           </div>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-            <button onClick={downloadCertificate} className="btn btn-primary" style={{ fontSize: '1rem', padding: '13px 32px' }}>
-              ⬇️ Download Certificate (PNG)
-            </button>
-            <button onClick={() => { setShowNameModal(true) }} className="btn btn-ghost" style={{ fontSize: '0.9rem', padding: '13px 20px' }}>
-              ✏️ Change name
-            </button>
+            {isOwner ? (
+              <>
+                <button onClick={downloadCertificate} className="btn btn-primary" style={{ fontSize: '1rem', padding: '13px 32px' }}>
+                  ⬇️ Download Certificate (PNG)
+                </button>
+                <button onClick={() => { setShowNameModal(true) }} className="btn btn-ghost" style={{ fontSize: '0.9rem', padding: '13px 20px' }}>
+                  ✏️ Change name
+                </button>
+              </>
+            ) : (
+              <div style={{ padding: '1rem', background: 'var(--panel)', borderRadius: 8, fontSize: '0.88rem', color: 'var(--text-dim)', textAlign: 'center' }}>
+                🔒 Only the project owner can download this certificate
+              </div>
+            )}
           </div>
 
           {nextTier && (
