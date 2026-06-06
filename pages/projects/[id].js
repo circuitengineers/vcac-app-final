@@ -275,6 +275,31 @@ export default function ProjectPage() {
             ))}
           </div>
 
+          {/* Certificate card */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <h4 style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>Certificate</h4>
+            {(() => {
+              const s = (project.runs || 0) + (project.likes || 0) * 10
+              const earned = s >= 100
+              return (
+                <div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', marginBottom: 10 }}>
+                    Vibe Score: <strong style={{ color: earned ? 'var(--gold)' : 'var(--text-mid)' }}>{s.toLocaleString()}</strong>
+                  </div>
+                  {earned ? (
+                    <Link href={'/certificates/' + id} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px', textAlign: 'center', display: 'block', color: 'var(--gold)', borderColor: 'rgba(255,209,102,0.3)' }}>
+                      🏆 View & Download Certificate
+                    </Link>
+                  ) : (
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                      Need {100 - s} more points for first certificate
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+
           {/* Links card */}
           <div className="card" style={{ padding: '1.25rem' }}>
             <h4 style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>Links</h4>
