@@ -268,7 +268,7 @@ export default function ProjectPage() {
             <div className="card" style={{ padding: '1.25rem' }}>
               <h4 style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '0.85rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>⚡ Owner actions</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <Link href={} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px', textAlign: 'center' }}>✏️ Edit project</Link>
+                <Link href={`/edit/${project.id}`} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px', textAlign: 'center' }}>✏️ Edit project</Link>
                 {isPro && isOwner && (() => {
                   const isPromoted = project.promoted_until && new Date(project.promoted_until) > new Date()
                   return (
