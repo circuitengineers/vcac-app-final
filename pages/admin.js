@@ -11,6 +11,7 @@ export default function Admin() {
   const [approved, setApproved] = useState([])
   const [members, setMembers] = useState([])
   const [stats, setStats] = useState({})
+  const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -25,20 +26,23 @@ export default function Admin() {
 
   async function fetchAll() {
     setLoading(true)
-    const [{ data: pend }, { data: appr }, { data: memb }] = await Promise.all([
+    const [{ data: pend }, { data: appr }, { data: memb }, { data: reps }] = await Promise.all([
       supabase.from('projects').select('*, profiles(username, email)').eq('status', 'pending').order('created_at', { ascending: false }),
       supabase.from('projects').select('*, profiles(username)').eq('status', 'approved').order('created_at', { ascending: false }),
-      supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.from('reports').select('*, reporter:profiles!reports_reporter_id_fkey(username), reported:profiles!reports_reported_id_fkey(username)').order('created_at', { ascending: false })
     ])
     setPending(pend || [])
     setApproved(appr || [])
     setMembers(memb || [])
+    setReports(reps || [])
     setStats({
       pending: (pend || []).length,
       approved: (appr || []).length,
       members: (memb || []).length,
       pros: (memb || []).filter(m => m.role === 'pro').length
     })
+
     setLoading(false)
   }
 
@@ -159,6 +163,35 @@ export default function Admin() {
                 </button>
                 <Link href={`/projects/${p.id}`} className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '6px 12px' }}>View</Link>
                 <button onClick={() => deleteProject(p.id)} className="btn btn-danger" style={{ fontSize: '0.78rem', padding: '6px 12px' }}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reports tab */}
+      {tab === 'reports' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {reports.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-dim)' }}>🎉 No reports!</div>
+          ) : reports.map(r => (
+            <div key={r.id} className="card" style={{ padding: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--maple)', fontSize: '0.9rem' }}>⚑ {r.reason}</span>
+                    <span style={{ fontSize: '0.72rem', color: r.status === 'pending' ? 'var(--gold)' : 'var(--green)', textTransform: 'uppercase', fontWeight: 600 }}>● {r.status}</span>
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', marginBottom: 4 }}>
+                    <strong style={{ color: 'var(--white)' }}>{r.reporter?.username}</strong> reported <strong style={{ color: 'var(--white)' }}>{r.reported?.username}</strong>
+                  </div>
+                  {r.details && <div style={{ fontSize: '0.82rem', color: 'var(--text-mid)', fontStyle: 'italic' }}>"{r.details}"</div>}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 4 }}>{new Date(r.created_at).toLocaleDateString()}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button onClick={async () => { await supabase.from('reports').update({ status: 'reviewed' }).eq('id', r.id); fetchAll() }} className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '6px 12px', color: 'var(--green)' }}>✓ Mark reviewed</button>
+                  <button onClick={async () => { await supabase.from('profiles').update({ role: 'banned' }).eq('id', r.reported_id); fetchAll() }} className="btn btn-danger" style={{ fontSize: '0.78rem', padding: '6px 12px' }}>Ban user</button>
+                </div>
               </div>
             </div>
           ))}
