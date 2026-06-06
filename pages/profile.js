@@ -12,6 +12,7 @@ export default function Profile() {
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
   const [saving, setSaving] = useState(false)
+  const [totalVibe, setTotalVibe] = useState(0)
   const [msg, setMsg] = useState(null)
 
   useEffect(() => {
@@ -24,6 +25,9 @@ export default function Profile() {
       setBio(prof?.bio || '')
       const { data: projs } = await supabase.from('projects').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false })
       setProjects(projs || [])
+      const approved = (projs || []).filter(p => p.status === 'approved')
+      const total = approved.reduce((sum, p) => sum + (p.runs || 0) + (p.likes || 0) * 10, 0)
+      setTotalVibe(total)
     })
   }, [])
 
@@ -84,10 +88,17 @@ export default function Profile() {
                 </div>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '1.3rem', color: 'var(--white)' }}>{projects.reduce((s, p) => s + (p.runs || 0), 0)}</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total runs</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total views</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '1.3rem', color: 'var(--gold)' }}>{totalVibe.toLocaleString()}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Vibe Score</div>
                 </div>
               </div>
-              <button onClick={() => setEditing(true)} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '7px 16px' }}>Edit profile</button>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button onClick={() => setEditing(true)} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '7px 16px' }}>Edit profile</button>
+                <Link href="/my-certificates" className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '7px 16px', color: 'var(--gold)', borderColor: 'rgba(255,209,102,0.3)' }}>🏆 My Certificates</Link>
+              </div>
             </>
           )}
         </div>
