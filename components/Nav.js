@@ -106,6 +106,9 @@ export default function Nav() {
                   <Link href="/my-certificates" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '10px 16px', fontSize: '0.85rem', color: 'var(--gold)', textDecoration: 'none' }}>
                     🏆 My Certificates
                   </Link>
+                  <Link href="/messages" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '10px 16px', fontSize: '0.85rem', color: 'var(--cyan)', textDecoration: 'none' }}>
+                    ✉️ Messages
+                  </Link>
                   {isAdmin && (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '10px 16px', fontSize: '0.85rem', color: 'var(--gold)', textDecoration: 'none' }}>
                       ⚡ Admin Panel
