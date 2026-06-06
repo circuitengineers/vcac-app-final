@@ -59,7 +59,7 @@ export default function Leaderboard() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'Syne', fontWeight: 700, color: 'var(--white)', fontSize: '1rem', marginBottom: 4 }}>{p.title}</div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>by {p.profiles?.username} · {p.category}</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>by <Link href={'/user/' + p.profiles?.username} style={{ color: 'var(--text-dim)', textDecoration: 'none', borderBottom: '1px solid var(--border)' }}>{p.profiles?.username}</Link> · {p.category}</div>
                 </div>
                 <div style={{ display: 'flex', gap: '1.5rem', textAlign: 'center' }}>
                   <div>
@@ -90,7 +90,7 @@ export default function Leaderboard() {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'Syne', fontWeight: 700, color: 'var(--white)' }}>{b.username}</span>
+                  <Link href={'/user/' + b.username} style={{ fontFamily: 'Syne', fontWeight: 700, color: 'var(--white)', textDecoration: 'none' }}>{b.username}</Link>
                   {b.role === 'president' && <span className="badge badge-gold">🍁 President</span>}
                   {b.role === 'pro' && <span className="badge badge-cyan">⚡ Pro</span>}
                 </div>
