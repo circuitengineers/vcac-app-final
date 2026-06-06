@@ -3,6 +3,33 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 
+function PromoteButton({ project, id, supabase, setProject }) {
+  const isPromoted = project.promoted_until && new Date(project.promoted_until) > new Date()
+  const label = isPromoted
+    ? ('Promoted until ' + new Date(project.promoted_until).toLocaleDateString())
+    : 'Promote this project (30 days)'
+
+  async function handlePromote() {
+    if (isPromoted) return
+    const until = new Date()
+    until.setDate(until.getDate() + 30)
+    await supabase.from('projects').update({ promoted_until: until.toISOString() }).eq('id', id)
+    setProject(function(p) { return Object.assign({}, p, { promoted_until: until.toISOString() }) })
+  }
+
+  return (
+    <button
+      onClick={handlePromote}
+      disabled={isPromoted}
+      className={isPromoted ? 'btn btn-ghost' : 'btn btn-cyan'}
+      style={{ fontSize: '0.82rem', padding: '8px' }}
+    >
+      {isPromoted ? ('🔥 ' + label) : '🔥 ' + label}
+    </button>
+  )
+}
+
+
 export default function ProjectPage() {
   const router = useRouter()
   const { id } = router.query
@@ -269,20 +296,9 @@ export default function ProjectPage() {
               <h4 style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '0.85rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>⚡ Owner actions</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <Link href={`/edit/${project.id}`} className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px', textAlign: 'center' }}>✏️ Edit project</Link>
-                {isPro && isOwner && (() => {
-                  const isPromoted = project.promoted_until && new Date(project.promoted_until) > new Date()
-                  return (
-                    <button onClick={async () => {
-                      if (isPromoted) return
-                      const until = new Date()
-                      until.setDate(until.getDate() + 30)
-                      await supabase.from('projects').update({ promoted_until: until.toISOString() }).eq('id', id)
-                      setProject(p => ({ ...p, promoted_until: until.toISOString() }))
-                    }} className={isPromoted ? 'btn btn-ghost' : 'btn btn-cyan'} style={{ fontSize: '0.82rem', padding: '8px' }} disabled={isPromoted}>
-                      {isPromoted ?  : '🔥 Promote this project (30 days)'}
-                    </button>
-                  )
-                })()}
+                {isPro && isOwner && (
+                  <PromoteButton project={project} id={id} supabase={supabase} setProject={setProject} />
+                )}
                 {!isPro && isOwner && (
                   <Link href="/pricing" className="btn btn-ghost" style={{ fontSize: '0.82rem', padding: '8px', textAlign: 'center', color: 'var(--gold)' }}>
                     🔥 Upgrade to Pro to promote
