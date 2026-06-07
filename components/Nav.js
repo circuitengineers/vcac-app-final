@@ -56,6 +56,7 @@ export default function Nav() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         <Link href="/projects" style={{ fontSize: '0.85rem', color: 'var(--text-mid)', textDecoration: 'none' }}>Projects</Link>
         <Link href="/leaderboard" style={{ fontSize: '0.85rem', color: 'var(--text-mid)', textDecoration: 'none' }}>Leaderboard</Link>
+        <Link href="/search" style={{ fontSize: '0.85rem', color: 'var(--text-mid)', textDecoration: 'none' }}>Search</Link>
         <Link href="/pricing" style={{ fontSize: '0.85rem', color: 'var(--gold)', textDecoration: 'none' }}>⚡ Pro</Link>
         {isAdmin && (
           <Link href="/admin" style={{ fontSize: '0.85rem', color: 'var(--gold)', textDecoration: 'none' }}>⚡ Admin</Link>
