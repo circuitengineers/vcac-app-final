@@ -12,6 +12,7 @@ export default function Admin() {
   const [approved, setApproved] = useState([])
   const [members, setMembers] = useState([])
   const [reports, setReports] = useState([])
+  const [certRequests, setCertRequests] = useState([])
   const [stats, setStats] = useState({})
   const [loading, setLoading] = useState(true)
   const [memberSearch, setMemberSearch] = useState('')
@@ -28,22 +29,25 @@ export default function Admin() {
 
   async function fetchAll() {
     setLoading(true)
-    const [{ data: pend }, { data: appr }, { data: memb }, { data: reps }] = await Promise.all([
+    const [{ data: pend }, { data: appr }, { data: memb }, { data: reps }, { data: certs }] = await Promise.all([
       supabase.from('projects').select('*, profiles(username, email)').eq('status', 'pending').order('created_at', { ascending: false }),
       supabase.from('projects').select('*, profiles(username)').eq('status', 'approved').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('reports').select('*, reporter:profiles!reports_reporter_id_fkey(username), reported:profiles!reports_reported_id_fkey(username, id)').order('created_at', { ascending: false })
+      supabase.from('reports').select('*, reporter:profiles!reports_reporter_id_fkey(username), reported:profiles!reports_reported_id_fkey(username, id)').order('created_at', { ascending: false }),
+      supabase.from('certificate_requests').select('*, project:projects(title), user:profiles(username)').eq('status', 'pending').order('created_at', { ascending: false })
     ])
     setPending(pend || [])
     setApproved(appr || [])
     setMembers(memb || [])
     setReports(reps || [])
+    setCertRequests(certs || [])
     setStats({
       pending: (pend || []).length,
       approved: (appr || []).length,
       members: (memb || []).length,
       pros: (memb || []).filter(m => m.role === 'pro').length,
       reports: (reps || []).filter(r => r.status === 'pending').length,
+      certs: (certs || []).length,
     })
     setLoading(false)
   }
@@ -70,8 +74,9 @@ export default function Admin() {
   }
 
   async function changeRole(userId, role) {
-    await supabase.from('profiles').update({ role }).eq('id', userId)
-    fetchAll()
+    const { error } = await supabase.from('profiles').update({ role: role }).eq('id', userId)
+    if (error) alert('Error updating role: ' + error.message)
+    else fetchAll()
   }
 
   async function markReportReviewed(id) {
@@ -96,6 +101,7 @@ export default function Admin() {
     { id: 'approved', label: '✅ Approved (' + stats.approved + ')' },
     { id: 'members', label: '👥 Members (' + stats.members + ')' },
     { id: 'reports', label: '⚑ Reports (' + stats.reports + ')' },
+    { id: 'certs', label: '🏆 Certificates (' + (stats.certs || 0) + ')' },
   ]
 
   return (
@@ -119,6 +125,7 @@ export default function Admin() {
           { label: 'Total members', value: stats.members, color: 'var(--cyan)' },
           { label: 'Pro members', value: stats.pros, color: 'var(--violet)' },
           { label: 'Open reports', value: stats.reports, color: 'var(--maple)' },
+          { label: 'Cert requests', value: stats.certs || 0, color: 'var(--gold)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ padding: '1.25rem' }}>
             <div style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: '2rem', color: s.color, lineHeight: 1 }}>{s.value}</div>
@@ -270,6 +277,48 @@ export default function Admin() {
           ))}
         </div>
       )}
+
+      {/* CERTIFICATES */}
+      {tab === 'certs' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {certRequests.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-dim)' }}>🎉 No pending certificate requests!</div>
+          ) : certRequests.map(r => (
+            <div key={r.id} className="card" style={{ padding: '1.25rem', borderColor: 'rgba(255,209,102,0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'Syne', fontWeight: 700, color: 'var(--gold)', fontSize: '0.95rem' }}>🏆 {r.tier}</span>
+                    <span className="badge badge-gold">Pending review</span>
+                  </div>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--white)', marginBottom: 4, fontWeight: 600 }}>{r.project?.title}</div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)', marginBottom: 4 }}>
+                    by <Link href={'/user/' + r.user?.username} style={{ color: 'var(--white)', textDecoration: 'none' }}>{r.user?.username}</Link>
+                    {' · '}Vibe Score: <strong style={{ color: 'var(--gold)' }}>{r.vibe_score?.toLocaleString()}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Requested {new Date(r.created_at).toLocaleDateString()}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+                  <Link href={'/projects/' + r.project_id} className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '6px 14px' }}>View project</Link>
+                  <button onClick={async () => {
+                    await supabase.from('certificate_requests').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', r.id)
+                    fetchAll()
+                  }} className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '6px 14px', color: 'var(--green)', borderColor: 'rgba(6,214,160,0.3)', whiteSpace: 'nowrap' }}>
+                    ✓ Approve
+                  </button>
+                  <button onClick={async () => {
+                    await supabase.from('certificate_requests').update({ status: 'rejected' }).eq('id', r.id)
+                    fetchAll()
+                  }} className="btn btn-danger" style={{ fontSize: '0.78rem', padding: '6px 14px' }}>
+                    ✕ Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
     </div>
   )
 }
