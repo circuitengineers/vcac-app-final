@@ -30,6 +30,54 @@ function PromoteButton({ project, id, supabase, setProject }) {
 }
 
 
+function ShareButton({ title }) {
+  const [copied, setCopied] = useState(false)
+
+  function copyLink() {
+    const url = window.location.href
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  function shareTwitter() {
+    const url = encodeURIComponent(window.location.href)
+    const text = encodeURIComponent('Check out "' + title + '" on VCAC — Canada\'s vibe coding community! 🍁')
+    window.open('https://twitter.com/intent/tweet?text=' + text + '&url=' + url, '_blank')
+  }
+
+  function shareReddit() {
+    const url = encodeURIComponent(window.location.href)
+    const t = encodeURIComponent(title + ' — VCAC Vibe Coded Project')
+    window.open('https://reddit.com/submit?url=' + url + '&title=' + t, '_blank')
+  }
+
+  const [showShare, setShowShare] = useState(false)
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setShowShare(!showShare)} className="btn btn-ghost" style={{ fontSize: '0.85rem', padding: '10px 16px' }}>
+        Share ↗
+      </button>
+      {showShare && (
+        <div style={{ position: 'absolute', top: '44px', right: 0, width: 200, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', zIndex: 50 }}>
+          <button onClick={copyLink} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: copied ? 'var(--green)' : 'var(--text)', borderBottom: '1px solid var(--border)' }}>
+            {copied ? '✓ Copied!' : '🔗 Copy link'}
+          </button>
+          <button onClick={shareTwitter} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text)', borderBottom: '1px solid var(--border)' }}>
+            𝕏 Share on X/Twitter
+          </button>
+          <button onClick={shareReddit} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text)' }}>
+            📮 Share on Reddit
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 export default function ProjectPage() {
   const router = useRouter()
   const { id } = router.query
@@ -144,9 +192,12 @@ export default function ProjectPage() {
                 {project.profiles?.role === 'pro' && <span className="badge badge-cyan" style={{ marginLeft: 8 }}>⚡ Pro</span>}
               </p>
             </div>
-            <button onClick={handleLike} className="btn btn-ghost" style={{ gap: 6, color: liked ? 'var(--maple)' : undefined, borderColor: liked ? 'rgba(255,63,63,0.4)' : undefined }}>
-              ♥ {project.likes || 0}
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={handleLike} className="btn btn-ghost" style={{ gap: 6, color: liked ? 'var(--maple)' : undefined, borderColor: liked ? 'rgba(255,63,63,0.4)' : undefined }}>
+                ♥ {project.likes || 0}
+              </button>
+              <ShareButton title={project.title} />
+            </div>
           </div>
 
           {/* Screenshots gallery */}
