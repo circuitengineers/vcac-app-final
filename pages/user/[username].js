@@ -19,8 +19,12 @@ export default function UserProfile() {
   const [viewedProfile, setViewedProfile] = useState(null)
   const [projects, setProjects] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
+  const [currentProfile, setCurrentProfile] = useState(null)
   const [totalVibe, setTotalVibe] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [following, setFollowing] = useState(false)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followLoading, setFollowLoading] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reportReason, setReportReason] = useState('')
   const [reportDetails, setReportDetails] = useState('')
@@ -31,8 +35,12 @@ export default function UserProfile() {
 
   useEffect(() => {
     if (!username) return
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setCurrentUser(session?.user ?? null)
+      if (session?.user) {
+        const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
+        setCurrentProfile(prof)
+      }
     })
     fetchProfile()
   }, [username])
@@ -41,11 +49,39 @@ export default function UserProfile() {
     const { data: prof } = await supabase.from('profiles').select('*').eq('username', username).single()
     if (!prof) { setLoading(false); return }
     setViewedProfile(prof)
+    setFollowerCount(prof.follower_count || 0)
+
     const { data: projs } = await supabase.from('projects').select('*').eq('user_id', prof.id).eq('status', 'approved').order('likes', { ascending: false })
     setProjects(projs || [])
     const total = (projs || []).reduce((sum, p) => sum + (p.runs || 0) + (p.likes || 0) * 10, 0)
     setTotalVibe(total)
+
+    // Check if current user follows this profile
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session && session.user.id !== prof.id) {
+      const { data: followData } = await supabase.from('follows').select('id').eq('follower_id', session.user.id).eq('following_id', prof.id).single()
+      setFollowing(!!followData)
+    }
     setLoading(false)
+  }
+
+  async function handleFollow() {
+    if (!currentUser) { router.push('/login'); return }
+    setFollowLoading(true)
+    if (following) {
+      await supabase.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', viewedProfile.id)
+      await supabase.from('profiles').update({ follower_count: Math.max((followerCount - 1), 0) }).eq('id', viewedProfile.id)
+      await supabase.from('profiles').update({ following_count: Math.max((currentProfile?.following_count || 1) - 1, 0) }).eq('id', currentUser.id)
+      setFollowing(false)
+      setFollowerCount(c => Math.max(c - 1, 0))
+    } else {
+      await supabase.from('follows').insert({ follower_id: currentUser.id, following_id: viewedProfile.id })
+      await supabase.from('profiles').update({ follower_count: (followerCount + 1) }).eq('id', viewedProfile.id)
+      await supabase.from('profiles').update({ following_count: (currentProfile?.following_count || 0) + 1 }).eq('id', currentUser.id)
+      setFollowing(true)
+      setFollowerCount(c => c + 1)
+    }
+    setFollowLoading(false)
   }
 
   async function sendReport(e) {
@@ -53,12 +89,7 @@ export default function UserProfile() {
     if (!reportReason.trim()) return
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/login'); return }
-    await supabase.from('reports').insert({
-      reporter_id: session.user.id,
-      reported_id: viewedProfile.id,
-      reason: reportReason,
-      details: reportDetails.trim() || null,
-    })
+    await supabase.from('reports').insert({ reporter_id: session.user.id, reported_id: viewedProfile.id, reason: reportReason, details: reportDetails.trim() || null })
     setReportSent(true)
   }
 
@@ -67,11 +98,7 @@ export default function UserProfile() {
     if (!messageText.trim()) return
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/login'); return }
-    await supabase.from('messages').insert({
-      sender_id: session.user.id,
-      receiver_id: viewedProfile.id,
-      content: messageText.trim()
-    })
+    await supabase.from('messages').insert({ sender_id: session.user.id, receiver_id: viewedProfile.id, content: messageText.trim() })
     setMessageSent(true)
     setMessageText('')
   }
@@ -93,13 +120,13 @@ export default function UserProfile() {
               <div style={{ textAlign: 'center', padding: '1rem' }}>
                 <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>✅</div>
                 <h3 style={{ fontFamily: 'Syne', fontWeight: 700, color: 'var(--white)', marginBottom: '0.5rem' }}>Report submitted</h3>
-                <p style={{ color: 'var(--text-mid)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>The VCAC president will review this report.</p>
+                <p style={{ color: 'var(--text-mid)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>The VCAC president will review this.</p>
                 <button onClick={() => { setShowReport(false); setReportSent(false); setReportReason(''); setReportDetails('') }} className="btn btn-ghost" style={{ width: '100%' }}>Close</button>
               </div>
             ) : (
               <>
                 <h3 style={{ fontFamily: 'Syne', fontWeight: 700, color: 'var(--white)', marginBottom: '0.5rem' }}>Report {viewedProfile.username}</h3>
-                <p style={{ color: 'var(--text-mid)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>This will be sent directly to the VCAC president for review.</p>
+                <p style={{ color: 'var(--text-mid)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Sent directly to the VCAC president for review.</p>
                 <form onSubmit={sendReport} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div>
                     <label>Reason *</label>
@@ -135,7 +162,7 @@ export default function UserProfile() {
               <div style={{ textAlign: 'center', padding: '1rem' }}>
                 <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>✉️</div>
                 <h3 style={{ fontFamily: 'Syne', fontWeight: 700, color: 'var(--white)', marginBottom: '0.5rem' }}>Message sent!</h3>
-                <p style={{ color: 'var(--text-mid)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>They can reply from their messages page.</p>
+                <p style={{ color: 'var(--text-mid)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>They can reply from their messages.</p>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => { setMessageSent(false); setMessageText('') }} className="btn btn-ghost" style={{ flex: 1 }}>Send another</button>
                   <button onClick={() => setShowMessage(false)} className="btn btn-ghost" style={{ flex: 1 }}>Close</button>
@@ -145,12 +172,9 @@ export default function UserProfile() {
               <>
                 <h3 style={{ fontFamily: 'Syne', fontWeight: 700, color: 'var(--white)', marginBottom: '1.5rem' }}>Message {viewedProfile.username}</h3>
                 <form onSubmit={sendMessage} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div>
-                    <label>Message</label>
-                    <textarea value={messageText} onChange={e => setMessageText(e.target.value)} rows={4} placeholder="Write your message..." style={{ resize: 'vertical' }} required autoFocus />
-                  </div>
+                  <textarea value={messageText} onChange={e => setMessageText(e.target.value)} rows={4} placeholder="Write your message..." style={{ resize: 'vertical' }} required autoFocus />
                   <div style={{ display: 'flex', gap: 10 }}>
-                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Send message</button>
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Send</button>
                     <button type="button" className="btn btn-ghost" onClick={() => setShowMessage(false)} style={{ flex: 1 }}>Cancel</button>
                   </div>
                 </form>
@@ -177,8 +201,8 @@ export default function UserProfile() {
             <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
               {[
                 { label: 'Projects', val: projects.length },
+                { label: 'Followers', val: followerCount },
                 { label: 'Total likes', val: projects.reduce((s, p) => s + (p.likes || 0), 0) },
-                { label: 'Total views', val: projects.reduce((s, p) => s + (p.runs || 0), 0) },
                 { label: 'Vibe Score', val: totalVibe.toLocaleString(), color: topTier?.color || 'var(--gold)' },
               ].map(s => (
                 <div key={s.label} style={{ textAlign: 'center' }}>
@@ -189,14 +213,21 @@ export default function UserProfile() {
             </div>
 
             {/* Action buttons */}
-            {!isOwnProfile && currentUser && (
+            {!isOwnProfile && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button onClick={() => setShowMessage(true)} className="btn btn-primary" style={{ fontSize: '0.85rem', padding: '8px 18px' }}>
-                  ✉️ Send message
+                <button onClick={handleFollow} disabled={followLoading} className={following ? 'btn btn-ghost' : 'btn btn-primary'} style={{ fontSize: '0.85rem', padding: '8px 20px', minWidth: 120 }}>
+                  {followLoading ? '...' : following ? '✓ Following' : '+ Follow'}
                 </button>
-                <button onClick={() => setShowReport(true)} className="btn btn-danger" style={{ fontSize: '0.85rem', padding: '8px 18px' }}>
-                  ⚑ Report user
-                </button>
+                {currentUser && (
+                  <button onClick={() => setShowMessage(true)} className="btn btn-ghost" style={{ fontSize: '0.85rem', padding: '8px 18px' }}>
+                    ✉️ Message
+                  </button>
+                )}
+                {currentUser && (
+                  <button onClick={() => setShowReport(true)} className="btn btn-danger" style={{ fontSize: '0.85rem', padding: '8px 18px' }}>
+                    ⚑ Report
+                  </button>
+                )}
               </div>
             )}
             {isOwnProfile && (
